@@ -312,8 +312,30 @@ export function validatePlayerMove(
 
   const rows = new Set(placements.map(p => p.row));
   const cols = new Set(placements.map(p => p.col));
-  const dir: Direction = rows.size === 1 ? 'H' : cols.size === 1 ? 'V' : 'X' as Direction;
-  if (dir === ('X' as Direction)) return { error: 'Les lettres doivent être alignées.' };
+
+  // Single-tile (hook) play: the orientation is determined by which side has
+  // neighbors. If only V has neighbors, the new word runs vertically; if only
+  // H, horizontally; if both, the placement forms one main word + one cross
+  // word and either direction can be the "main" (the other is checked as a
+  // cross-word during scoring).
+  let dir: Direction;
+  if (placements.length === 1) {
+    const p = placements[0];
+    const hasHNeighbor = (inBounds(p.row, p.col - 1) && board[p.row][p.col - 1].letter)
+                      || (inBounds(p.row, p.col + 1) && board[p.row][p.col + 1].letter);
+    const hasVNeighbor = (inBounds(p.row - 1, p.col) && board[p.row - 1][p.col].letter)
+                      || (inBounds(p.row + 1, p.col) && board[p.row + 1][p.col].letter);
+    if (!hasHNeighbor && !hasVNeighbor) {
+      return isBoardEmpty(board)
+        ? { error: 'Le premier mot doit faire au moins 2 lettres.' }
+        : { error: 'Le mot doit toucher une lettre existante.' };
+    }
+    dir = hasHNeighbor ? 'H' : 'V';
+  } else {
+    const lined = rows.size === 1 ? 'H' : cols.size === 1 ? 'V' : null;
+    if (!lined) return { error: 'Les lettres doivent être alignées.' };
+    dir = lined;
+  }
 
   const dr = dir === 'V' ? 1 : 0, dc = dir === 'H' ? 1 : 0;
   const pr = dir === 'V' ? 0 : 1, pc = dir === 'H' ? 0 : 1;
