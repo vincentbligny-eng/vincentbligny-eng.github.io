@@ -44,6 +44,10 @@ jobs:
         env:
           SITE: ${{ env.SITE }}
           BASE: ${{ env.BASE }}
+          # Optional: cross-device play. Leave the secrets unset and the
+          # app falls back to local-only hot-seat mode.
+          PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
 
       - uses: actions/upload-pages-artifact@v3
         with:

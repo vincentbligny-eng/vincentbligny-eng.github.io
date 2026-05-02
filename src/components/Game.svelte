@@ -14,6 +14,7 @@
     LocalTransport, pickColor, generatePlayerId,
     type SessionTransport, type SharedSession, type LobbyPlayer,
   } from '../lib/session';
+  import { SupabaseTransport, readSupabaseConfig, roomFromHash } from '../lib/supabase';
   import Handover from './Handover.svelte';
   import Board from './Board.svelte';
   import Board3D from './Board3D.svelte';
@@ -90,10 +91,29 @@
     }
   }
 
+  // ─── Transport selection ──────────────────────────────────────────────
+  // Use Supabase when env vars are configured AND the URL has #room=…;
+  // otherwise fall back to LocalTransport (single-device hot-seat).
+  let activeRoomId: string | null = null;
+  function pickTransport(): SessionTransport {
+    const cfg = readSupabaseConfig();
+    const room = roomFromHash();
+    if (cfg && room) {
+      activeRoomId = room;
+      return new SupabaseTransport(cfg.url, cfg.anonKey, room);
+    }
+    activeRoomId = null;
+    return new LocalTransport();
+  }
+
   // ─── Mount ─────────────────────────────────────────────────────────────
+  let supabaseConfigured = false;
   onMount(async () => {
-    transport = new LocalTransport();
+    transport = pickTransport();
     clientId = transport.getClientId();
+    supabaseConfigured = !!readSupabaseConfig();
+    // React to user changing the hash (e.g., clicking a share link).
+    window.addEventListener('hashchange', () => window.location.reload());
     unsub = transport.subscribe(s => {
       const prevPhase = shared?.phase;
       shared = s;
@@ -518,11 +538,56 @@
 
   // ─── End-game winner ───────────────────────────────────────────────────
   $: leader = shared ? [...shared.players].sort((a, b) => b.rawScore - a.rawScore)[0] : null;
+
+  // ─── Online room banner (Join / Lobby screen only) ────────────────────
+  let copiedLink = false;
+  $: shareUrl = activeRoomId && typeof window !== 'undefined'
+    ? `${window.location.origin}${window.location.pathname}#room=${activeRoomId}`
+    : '';
+
+  async function startOnlineRoom() {
+    if (!readSupabaseConfig()) return;
+    const { generateRoomId, setRoomInUrl } = await import('../lib/supabase');
+    setRoomInUrl(generateRoomId()); // hashchange listener reloads → SupabaseTransport activates
+  }
+
+  async function copyShareLink() {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      copiedLink = true;
+      setTimeout(() => { copiedLink = false; }, 1800);
+    } catch { /* clipboard blocked — user can copy from the address bar */ }
+  }
+
+  async function leaveOnlineRoom() {
+    window.location.hash = '';
+    window.location.reload();
+  }
 </script>
 
 <svelte:window on:keydown={handleKey} />
 
 {#if !shared || shared.phase === 'lobby'}
+  {#if activeRoomId}
+    <div class="max-w-lg mx-auto px-4 pt-6">
+      <div class="panel px-4 py-3 flex items-center justify-between gap-3 text-sm">
+        <span class="font-mono text-mist-500">🌐 Salon · <span class="text-neon font-display">{activeRoomId}</span></span>
+        <span class="flex items-center gap-2">
+          <button class="btn-ghost !px-3 !py-1.5 text-xs" on:click={copyShareLink}>
+            {copiedLink ? '✓ Copié' : 'Copier le lien'}
+          </button>
+          <button class="btn-ghost !px-3 !py-1.5 text-xs" on:click={leaveOnlineRoom}>Quitter</button>
+        </span>
+      </div>
+    </div>
+  {:else if supabaseConfigured}
+    <div class="max-w-lg mx-auto px-4 pt-6">
+      <button class="panel w-full px-4 py-3 text-sm hover:bg-white/[0.06] transition" on:click={startOnlineRoom}>
+        📱 Mode local · <span class="text-neon">Inviter à distance</span>
+      </button>
+    </div>
+  {/if}
   <!-- JOIN + LOBBY merge: show join when we're not in, lobby when we are. -->
   {#if !shared || !shared.players.some(p => p.clientId === clientId)}
     <Join

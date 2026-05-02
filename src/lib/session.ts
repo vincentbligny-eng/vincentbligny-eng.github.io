@@ -1,8 +1,9 @@
 // Shared-session transport for the duel.
 // v1 — LocalTransport mirrors state via localStorage + BroadcastChannel
-// (works across tabs on the same browser, for dev).
-// v2 — SupabaseTransport (pending — will replace LocalTransport once the
-// project URL + anon key are wired in).
+// (works across tabs on the same browser; default for hot-seat play).
+// v2 — SupabaseTransport (see ./supabase.ts) — picks up when both env vars
+// PUBLIC_SUPABASE_URL + PUBLIC_SUPABASE_ANON_KEY are present at build time
+// AND the page URL has a `#room=...` hash. Lets two devices share a game.
 
 import type { Board, Placement, RackTile, Move } from '../engine/types';
 import type { DuelOutcome } from '../engine/game';
