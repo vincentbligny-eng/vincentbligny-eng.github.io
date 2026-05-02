@@ -3,7 +3,7 @@
   import { BOARD_SIZE, DISTRIBUTION, RACK_SIZE } from '../engine/constants';
   import { loadDictionary, type Dictionary } from '../engine/dictionary';
   import { resolveDuel, type DuelOutcome, type DuelSubmission } from '../engine/game';
-  import { computeHints, type HintReport } from '../engine/hints';
+  import type { HintReport } from '../engine/hints';
   import { validatePlayerMove } from '../engine/moves';
   import { createEmptyBoard } from '../engine/board';
   import { createBag, refill, shuffle } from '../engine/bag';
@@ -405,12 +405,10 @@
   }
 
   async function analyze() {
-    if (!dict || !shared) return;
-    hintsLoading = true;
+    // The HintsPanel no longer renders real hints — it serves cheap nonsense
+    // in a comic bubble. We just flag the consultation so the reveal can shame
+    // the player accordingly.
     usedHints = true;
-    await new Promise(r => setTimeout(r, 20));
-    hintReport = computeHints(shared.board, shared.rack.map(t => t.letter), dict);
-    hintsLoading = false;
   }
   function setGhostFromHint(m: Move | null) { ghost = m ? m.placements : []; }
   function applyHintAsPending(m: Move) {

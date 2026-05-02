@@ -1,198 +1,125 @@
 <script lang="ts">
   import type { Move } from '../engine/types';
   import type { HintReport } from '../engine/hints';
+  import { RANDOM_THOUGHTS } from '../lib/easter-eggs';
 
+  // Kept for API compatibility with Game.svelte; we ignore the report and never apply.
   export let report: HintReport | null = null;
   export let loading = false;
   export let onHover: (m: Move | null) => void = () => {};
   export let onApply: (m: Move) => void = () => {};
   export let onAnalyze: () => void = () => {};
 
-  let revealed: Record<string, boolean> = {};
-  $: if (report) { /* new report → keep existing reveals */ }
+  // Suppress unused-export warnings without changing the public API.
+  void report; void loading; void onHover; void onApply;
 
-  function toggle(key: string) { revealed = { ...revealed, [key]: !revealed[key] }; }
+  let consultations = 0;
+  let thought = '';
+  let bubbleKey = 0;          // forces re-mount → re-runs the pop-in animation
 
-  const medal = ['🥇', '🥈', '🥉'];
-
-  function colLabel(c: number): string { return String.fromCharCode(65 + c); }
-
-  function premLabel(p: string | null): string {
-    switch (p) {
-      case 'DL': return 'Lettre × 2';
-      case 'TL': return 'Lettre × 3';
-      case 'DW': return 'Mot × 2';
-      case 'TW': return 'Mot × 3';
-      default: return '';
+  function pickThought(): string {
+    if (RANDOM_THOUGHTS.length === 0) return '…';
+    let next = RANDOM_THOUGHTS[Math.floor(Math.random() * RANDOM_THOUGHTS.length)];
+    // Avoid the rare immediate repeat.
+    if (next === thought && RANDOM_THOUGHTS.length > 1) {
+      next = RANDOM_THOUGHTS[(RANDOM_THOUGHTS.indexOf(next) + 1) % RANDOM_THOUGHTS.length];
     }
+    return next;
+  }
+
+  function consult() {
+    thought = pickThought();
+    consultations++;
+    bubbleKey++;
+    onAnalyze();              // still flips `usedHints` upstream → triggers the cheat badge
   }
 </script>
 
-<section class="panel p-5 space-y-4">
-  <header class="flex items-center justify-between">
+<section class="panel p-5 space-y-4 oracle-panel">
+  <header class="flex items-center justify-between gap-2">
     <div>
-      <h3 class="text-lg">Aide progressive</h3>
-      <p class="text-xs text-mist-500">Découvrez les indices un à un — plus vous en voyez, moins vous apprenez.</p>
+      <h3 class="text-lg flex items-center gap-2">🦉 <span>Conseil du jour</span></h3>
+      <p class="text-xs text-mist-500 italic">…ou pas. On sait pas trop.</p>
     </div>
-    {#if !report && !loading}
-      <button class="btn-ghost !py-1.5 !px-3 text-xs" on:click={onAnalyze}>Analyser</button>
-    {:else if report}
-      <button class="btn-ghost !py-1.5 !px-3 text-xs" on:click={() => { revealed = {}; onAnalyze(); }}>↻</button>
-    {/if}
+    <button class="btn-ghost !py-1.5 !px-3 text-xs whitespace-nowrap" on:click={consult}>
+      {thought ? 'Encore !' : 'Demande conseil'}
+    </button>
   </header>
 
-  {#if loading}
-    <div class="text-sm text-mist-500 animate-pulse">Exploration du plateau…</div>
-  {:else if !report}
-    <p class="text-sm text-mist-500">Cliquez sur <em>Analyser</em> pour voir les indices disponibles.</p>
-  {:else}
-    <!-- Coach line: always visible, non-spoiling -->
-    <div class="rounded-xl bg-ice/10 border border-ice/20 px-3 py-2 text-sm text-ice-glow animate-pop-in">
-      {report.coach}
-    </div>
-
-    <!-- Rack analysis -->
-    <div class="rounded-xl bg-white/5 border border-white/5 p-3 space-y-2">
-      <h4 class="text-xs font-mono uppercase tracking-wider text-mist-500">Votre tirage</h4>
-      <div class="grid grid-cols-3 gap-2 text-xs">
-        <div><span class="text-mist-500">Valeur</span> <span class="font-mono text-mist-100 ml-1">{report.rack.value} pts</span></div>
-        <div><span class="text-mist-500">V / C</span> <span class="font-mono text-mist-100 ml-1">{report.rack.vowels}/{report.rack.consonants}</span></div>
-        <div><span class="text-mist-500">Équilibre</span> <span class="ml-1">{report.rack.balanced ? '✓' : '⚠'}</span></div>
-      </div>
-      {#if report.rack.heavy.length > 0}
-        <p class="text-xs text-mist-500">Grosses lettres : <span class="font-mono text-ember">{report.rack.heavy.join(' ')}</span></p>
-      {/if}
-      {#if report.rack.duplicates.length > 0}
-        <p class="text-xs text-mist-500">Doublons : <span class="font-mono text-mist-100">{report.rack.duplicates.join(' ')}</span></p>
-      {/if}
-      {#if report.rack.anagrams.length > 0}
-        <div class="text-xs">
-          <button class="text-mist-500 hover:text-neon-glow" on:click={() => toggle('anagrams')}>
-            {revealed.anagrams ? '▾' : '▸'} {report.rack.anagrams.length} anagramme{report.rack.anagrams.length > 1 ? 's' : ''} du rack
-          </button>
-          {#if revealed.anagrams}
-            <div class="mt-1 flex flex-wrap gap-1">
-              {#each report.rack.anagrams as w}
-                <span class="chip bg-white/10 text-mist-100 font-display">{w}</span>
-              {/each}
-            </div>
-          {/if}
+  <div class="bubble-stage">
+    {#if !thought}
+      <p class="text-sm text-mist-500 italic">
+        Le hibou n'a pas encore parlé. Cliquez si vous osez — il sera prévenu.
+      </p>
+    {:else}
+      {#key bubbleKey}
+        <div class="comic-bubble animate-pop-in">
+          <p class="bubble-text">{thought}</p>
+          <span class="bubble-tail" aria-hidden="true"></span>
+          <span class="bubble-tail-stroke" aria-hidden="true"></span>
         </div>
-      {/if}
-    </div>
-
-    {#if report.teaser}
-      <!-- Progressive teasers about the best move -->
-      <div class="space-y-1.5">
-        <h4 class="text-xs font-mono uppercase tracking-wider text-mist-500">Meilleur coup — indices</h4>
-
-        <div class="flex items-center justify-between rounded-lg bg-white/5 px-3 py-1.5 text-sm">
-          <span class="text-mist-500">Score max</span>
-          <span class="font-mono text-neon">{report.teaser.score} pts{report.teaser.bingo ? ' 🎯' : ''}</span>
-        </div>
-
-        {#each [
-          { key: 'length',  label: 'Longueur du mot',  value: `${report.teaser.length} lettres` },
-          { key: 'dir',     label: 'Direction',        value: report.teaser.dir === 'H' ? 'Horizontal →' : 'Vertical ↓' },
-          { key: 'first',   label: 'Première lettre',  value: report.teaser.firstLetter },
-          { key: 'last',    label: 'Dernière lettre',  value: report.teaser.lastLetter },
-          { key: 'loc',     label: 'Départ',           value: `${colLabel(report.teaser.col)}${report.teaser.row + 1}` },
-          { key: 'blank',   label: 'Utilise un joker ?', value: report.teaser.usesBlank ? 'Oui' : 'Non' },
-        ] as hint (hint.key)}
-          <button
-            type="button"
-            class="w-full flex items-center justify-between rounded-lg bg-white/5 hover:bg-white/10
-                   px-3 py-1.5 text-sm text-left transition"
-            on:click={() => toggle(hint.key)}
-          >
-            <span class="text-mist-500">{hint.label}</span>
-            {#if revealed[hint.key]}
-              <span class="font-mono text-mist-100 animate-pop-in">{hint.value}</span>
-            {:else}
-              <span class="font-mono text-mist-500">···</span>
-            {/if}
-          </button>
-        {/each}
-
-        {#if report.premiumsInTop.length > 0}
-          <button
-            type="button"
-            class="w-full flex items-center justify-between rounded-lg bg-white/5 hover:bg-white/10 px-3 py-1.5 text-sm"
-            on:click={() => toggle('prem')}
-          >
-            <span class="text-mist-500">Cases premium utilisées</span>
-            {#if revealed.prem}
-              <span class="flex gap-1">
-                {#each report.premiumsInTop as p}
-                  <span class="chip bg-rose/20 text-rose-glow">{p}</span>
-                {/each}
-              </span>
-            {:else}
-              <span class="font-mono text-mist-500">···</span>
-            {/if}
-          </button>
-        {/if}
-      </div>
+      {/key}
+      <p class="text-[10px] font-mono uppercase tracking-wider text-mist-500 mt-1 text-right">
+        consultation #{consultations} · 👀 noté
+      </p>
     {/if}
-
-    <!-- Hooks: small 1-tile extensions -->
-    {#if report.hooks.length > 0}
-      <div>
-        <button class="w-full flex items-center justify-between text-xs font-mono uppercase tracking-wider text-mist-500 hover:text-mist-100 py-1" on:click={() => toggle('hooks')}>
-          <span>{revealed.hooks ? '▾' : '▸'} Raccrocs · {report.hooks.length}</span>
-        </button>
-        {#if revealed.hooks}
-          <ul class="mt-1 space-y-1">
-            {#each report.hooks as h}
-              <li class="flex items-center justify-between rounded-lg bg-white/5 px-3 py-1.5 text-sm">
-                <span>
-                  <span class="font-mono text-ember">{h.tile}</span>
-                  <span class="mx-1 text-mist-500">→</span>
-                  <span class="font-display">{h.word}</span>
-                </span>
-                <span class="font-mono text-mist-500">{h.score} pts</span>
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </div>
-    {/if}
-
-    <!-- Final fallback: the three top solutions -->
-    {#if report.topN.length > 0}
-      <div>
-        <button class="w-full flex items-center justify-between text-xs font-mono uppercase tracking-wider text-mist-500 hover:text-mist-100 py-1" on:click={() => toggle('solutions')}>
-          <span>{revealed.solutions ? '▾' : '▸'} Solutions — top 3 (spoiler)</span>
-        </button>
-        {#if revealed.solutions}
-          <ol class="mt-1 space-y-1.5">
-            {#each report.topN as m, i}
-              <li>
-                <button
-                  type="button"
-                  class="w-full flex items-center gap-3 p-2.5 rounded-lg bg-white/5 hover:bg-white/10
-                         border border-white/5 text-left transition"
-                  on:pointerenter={() => onHover(m)}
-                  on:pointerleave={() => onHover(null)}
-                  on:focus={() => onHover(m)}
-                  on:blur={() => onHover(null)}
-                  on:click={() => onApply(m)}
-                >
-                  <span class="text-xl">{medal[i] ?? '•'}</span>
-                  <span class="flex-1 min-w-0">
-                    <span class="font-display text-base">{m.word}</span>
-                    <span class="ml-2 text-xs text-mist-500 font-mono">
-                      {m.dir === 'H' ? '→' : '↓'} {colLabel(m.col)}{m.row + 1}
-                      {#if m.bingo}<span class="chip bg-neon/20 text-neon-glow ml-2">BINGO</span>{/if}
-                    </span>
-                  </span>
-                  <span class="font-mono text-sm text-neon">+{m.score}</span>
-                </button>
-              </li>
-            {/each}
-          </ol>
-        {/if}
-      </div>
-    {/if}
-  {/if}
+  </div>
 </section>
+
+<style>
+  .oracle-panel {
+    background:
+      radial-gradient(ellipse at top right, rgba(163,230,53,0.06), transparent 60%),
+      linear-gradient(160deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+  }
+  .bubble-stage {
+    position: relative;
+    min-height: 110px;
+    padding-bottom: 18px;
+  }
+
+  /* Comic speech bubble with a tail. The tail is two stacked elements:
+     a coloured triangle on top of a slightly larger black one for the
+     stroke effect. */
+  .comic-bubble {
+    position: relative;
+    background: #fdf3da;
+    color: #1a1a1f;
+    border: 2px solid #07080c;
+    border-radius: 22px;
+    padding: 14px 18px 16px 18px;
+    font-family: "Space Grotesk", ui-sans-serif, sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.35;
+    box-shadow:
+      4px 4px 0 #07080c,
+      0 14px 30px -12px rgba(0,0,0,0.6);
+    transform-origin: bottom right;
+  }
+  .bubble-text {
+    margin: 0;
+    /* Slight italic for a hand-drawn feel. */
+    font-style: italic;
+  }
+  /* Tail: knock-out triangle pointing toward the bottom-right (the owl). */
+  .bubble-tail-stroke {
+    position: absolute;
+    right: 24px;
+    bottom: -16px;
+    width: 0; height: 0;
+    border-left: 14px solid transparent;
+    border-right: 0 solid transparent;
+    border-top: 18px solid #07080c;
+  }
+  .bubble-tail {
+    position: absolute;
+    right: 27px;
+    bottom: -10px;
+    width: 0; height: 0;
+    border-left: 10px solid transparent;
+    border-right: 0 solid transparent;
+    border-top: 12px solid #fdf3da;
+    z-index: 1;
+  }
+</style>
