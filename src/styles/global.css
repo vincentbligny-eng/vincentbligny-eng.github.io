@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root { color-scheme: dark; }
+  html, body {
+    @apply bg-night-900 text-mist-100 antialiased;
+    background-image:
+      radial-gradient(1200px 600px at 10% -10%, rgba(251,146,60,0.10), transparent 60%),
+      radial-gradient(900px 500px  at 110% 110%, rgba(56,189,248,0.10), transparent 60%);
+    background-attachment: fixed;
+  }
+  body { @apply min-h-dvh font-sans; }
+  h1,h2,h3 { @apply font-display tracking-tight; }
+  ::selection { background: rgb(163 230 53 / 0.3); }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-2xl bg-night-700/60 backdrop-blur
+           border border-white/5 shadow-xl;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full
+           text-xs font-mono uppercase tracking-wider;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5
+           font-semibold text-sm transition
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+           focus-visible:ring-offset-night-900 focus-visible:ring-neon
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-neon text-night-900 hover:bg-neon-glow
+           shadow-[0_4px_20px_-4px_rgb(163_230_53/0.5)];
+  }
+  .btn-ghost {
+    @apply btn bg-white/5 text-mist-100 hover:bg-white/10 border border-white/5;
+  }
+  .btn-ember {
+    @apply btn bg-ember/90 text-night-900 hover:bg-ember-glow;
+  }
+}

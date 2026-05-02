@@ -1,0 +1,21 @@
+---
+import '../styles/global.css';
+import Game from '../components/Game.svelte';
+---
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Duplicate · Entraîneur de Scrabble</title>
+    <meta name="description" content="Entraîneur solo de Scrabble duplicate avec suggestions et tirages dirigés." />
+    <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" />
+  </head>
+  <body>
+    <Game client:only="svelte" />
+  </body>
+</html>
