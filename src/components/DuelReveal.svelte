@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { DuelOutcome } from '../engine/game';
   import type { Move } from '../engine/types';
+  import Definition from './Definition.svelte';
 
   export let outcomes: DuelOutcome[];
   export let topMove: Move | null;
@@ -45,6 +46,9 @@
     {:else}
       <h3 class="text-lg">Aucun coup possible — l'Ordi passe.</h3>
     {/if}
+    {#if topMove}
+      <Definition word={topMove.word} />
+    {/if}
   </header>
 
   <div class="grid sm:grid-cols-2 gap-3">
@@ -87,6 +91,9 @@
             {o.move.dir === 'H' ? '→' : '↓'} {colLabel(o.move.col)}{o.move.row + 1}
             {#if o.move.bingo}<span class="ml-2 text-neon-glow">BINGO</span>{/if}
           </p>
+          {#if o.move.word !== topMove?.word}
+            <Definition word={o.move.word} compact />
+          {/if}
         {/if}
       </div>
     {/each}

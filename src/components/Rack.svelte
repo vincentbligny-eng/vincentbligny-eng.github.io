@@ -23,7 +23,7 @@
           />
         </button>
       {:else}
-        <div class="w-10 h-10 rounded-md border border-dashed border-white/10"></div>
+        <div class="w-12 h-12 rounded-lg border border-dashed border-white/10"></div>
       {/if}
     {/each}
   </div>

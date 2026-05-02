@@ -15,6 +15,8 @@
     type SessionTransport, type SharedSession, type LobbyPlayer,
   } from '../lib/session';
   import { SupabaseTransport, readSupabaseConfig, roomFromHash } from '../lib/supabase';
+  import Chat from './Chat.svelte';
+  import type { ChatMessage } from '../lib/session';
   import Handover from './Handover.svelte';
   import Board from './Board.svelte';
   import Board3D from './Board3D.svelte';
@@ -188,6 +190,7 @@
       lastTurnResult: null,
       seed,
       startedAt: null,
+      chat: [],
     };
   }
 
@@ -564,6 +567,29 @@
     window.location.hash = '';
     window.location.reload();
   }
+
+  // ─── Chat ─────────────────────────────────────────────────────────────
+  $: chatMessages = shared?.chat ?? [];
+  $: chatStorageKey = `cdrs-chat-seen-${activeRoomId ?? 'local'}`;
+  $: chatMe = me ? { playerId: me.playerId, name: me.name, color: me.color } : null;
+
+  async function sendChat(text: string) {
+    if (!me) return;
+    const trimmed = text.slice(0, 280);
+    const msg: ChatMessage = {
+      id: `${me.playerId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      playerId: me.playerId,
+      playerName: me.name,
+      color: me.color,
+      text: trimmed,
+      at: Date.now(),
+    };
+    await transport.update(s => {
+      const base = s ?? createEmptyShared();
+      const chat = [...(base.chat ?? []), msg].slice(-200); // cap at 200 to keep payload small
+      return { ...base, chat };
+    });
+  }
 </script>
 
 <svelte:window on:keydown={handleKey} />
@@ -846,7 +872,15 @@
 
 <Toast message={toastMessage} />
 <Confetti trigger={confettiTrigger} />
-<BlankPicker open={!!blankPicker} onPick={confirmBlank} onCancel={cancelBlank} /><Coach />
+<BlankPicker open={!!blankPicker} onPick={confirmBlank} onCancel={cancelBlank} />
+{#if shared && shared.players.length > 1}
+  <Chat
+    messages={chatMessages}
+    me={chatMe}
+    onSend={sendChat}
+    storageKey={chatStorageKey}
+  />
+{/if}<Coach />
 {#if pendingHandover && shared?.phase === 'play' && handoverPlayer}
   <Handover name={handoverPlayer.name} color={handoverPlayer.color} onContinue={dismissHandover} />
 {/if}

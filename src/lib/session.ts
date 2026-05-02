@@ -35,6 +35,15 @@ export interface SubmissionRecord {
   submittedAt: number;
 }
 
+export interface ChatMessage {
+  id: string;
+  playerId: string;
+  playerName: string;
+  color: string;
+  text: string;
+  at: number;
+}
+
 export type SessionPhase = 'lobby' | 'play' | 'reveal' | 'ended';
 
 export interface SharedSession {
@@ -60,6 +69,7 @@ export interface SharedSession {
   } | null;
   seed: number;
   startedAt: number | null;
+  chat: ChatMessage[];
 }
 
 export interface SessionTransport {

@@ -27,9 +27,9 @@
     return PREMIUM_GRID[r][c] ?? '';
   }
   function tileFaceClass(kind: string): string {
-    if (kind === 'pending') return 'bg-ember text-night-900 ring-2 ring-ember-glow';
-    if (kind === 'ghost')   return 'bg-ember/40 text-ember-glow ring-1 ring-ember/60';
-    return 'bg-tile-cream text-night-900';
+    if (kind === 'pending') return 'tile-face2d-pending text-night-900';
+    if (kind === 'ghost')   return 'tile-face2d-ghost text-ember-glow';
+    return 'tile-face2d-fixed text-night-900';
   }
 
   $: pendingMap = new Map(pending.map(p => [`${p.row},${p.col}`, p]));
@@ -114,10 +114,9 @@
                     <div class="tile-right-3d"></div>
                   </div>
                 {:else}
-                  <div class="w-full h-full rounded-[4px] flex items-center justify-center relative
+                  <div class="w-full h-full rounded-[5px] flex items-center justify-center relative
                               {tileFaceClass(occupant.kind)}
-                              {occupant.kind === 'pending' ? 'animate-pop-in' : ''}
-                              shadow-tile">
+                              {occupant.kind === 'pending' ? 'animate-pop-in' : ''}">
                     <span class="tile-letter font-display font-bold">{occupant.letter === '?' ? '' : occupant.letter}</span>
                     {#if occupant.letter !== '?' && !occupant.blank}
                       <span class="tile-value">{LETTER_VALUE[occupant.letter] ?? 0}</span>
@@ -282,20 +281,62 @@
     background: linear-gradient(90deg, #c9a865 0%, #6e5128 100%);
   }
 
+  /* 2D tile faces — gradient + bevel for a tactile feel. */
+  .tile-face2d-fixed {
+    background: linear-gradient(180deg, #fdf3da 0%, #f0deb1 55%, #d8c089 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.55),
+      inset 0 -3px 0 rgba(0,0,0,0.16),
+      0 1px 2px rgba(0,0,0,0.4);
+    position: relative;
+  }
+  .tile-face2d-fixed::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 45%);
+    pointer-events: none;
+  }
+  .tile-face2d-pending {
+    background: linear-gradient(180deg, #ffd194 0%, #fb923c 60%, #d97706 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.55),
+      inset 0 -3px 0 rgba(0,0,0,0.22),
+      0 0 0 2px #fdba74,
+      0 0 22px -4px #fb923cc0,
+      0 2px 4px rgba(0,0,0,0.5);
+    position: relative;
+  }
+  .tile-face2d-pending::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255,255,255,0.22) 0%, transparent 45%);
+    pointer-events: none;
+  }
+  .tile-face2d-ghost {
+    background: linear-gradient(180deg, rgba(251,146,60,0.4), rgba(251,146,60,0.18));
+    box-shadow: inset 0 0 0 1px rgba(251,146,60,0.55);
+  }
+
   .tile-letter {
     font-family: "Space Grotesk", ui-sans-serif, sans-serif;
-    font-weight: 700;
-    font-size: clamp(0.7rem, 2.6vmin, 1rem);
+    font-weight: 800;
+    font-size: clamp(1rem, 3.4vmin, 1.55rem);
     line-height: 1;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.4), 0 -1px 0 rgba(0,0,0,0.15);
+    letter-spacing: 0.02em;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.55), 0 -1px 0 rgba(0,0,0,0.2);
   }
   .tile-value {
     position: absolute;
     right: 3px;
     bottom: 1px;
-    font-size: clamp(0.45rem, 1.3vmin, 0.55rem);
+    font-size: clamp(0.55rem, 1.6vmin, 0.7rem);
     font-family: "JetBrains Mono", ui-monospace, monospace;
-    opacity: 0.65;
+    font-weight: 600;
+    opacity: 0.72;
   }
 
   /* Cursor */
