@@ -33,6 +33,8 @@ export interface TurnRow {
 export interface SubmissionRecord {
   placements: Placement[] | null;  // null = pass
   submittedAt: number;
+  usedHints?: boolean;
+  appliedHint?: boolean;
 }
 
 export interface ChatMessage {

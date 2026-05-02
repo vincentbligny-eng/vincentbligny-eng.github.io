@@ -67,8 +67,21 @@
           <div class="absolute -top-6 -right-6 text-5xl opacity-30">🎯</div>
         {/if}
         <div class="flex items-baseline justify-between gap-2">
-          <p class="font-display font-semibold truncate" style="color: {color};">
-            {o.playerName}{#if isTop} · top !{/if}
+          <p class="font-display font-semibold truncate flex items-baseline gap-2" style="color: {color};">
+            <span>{o.playerName}{#if isTop} · top !{/if}</span>
+            {#if o.appliedHint}
+              <span title="A appliqué un conseil de l'aide progressive"
+                    class="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded
+                           bg-rose-glow/20 text-rose-glow border border-rose-glow/40">
+                🚨 conseil appliqué
+              </span>
+            {:else if o.usedHints}
+              <span title="A consulté la liste des suggestions"
+                    class="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded
+                           bg-amber-300/15 text-amber-300 border border-amber-300/40">
+                👀 a regardé
+              </span>
+            {/if}
           </p>
           <span class="font-mono text-sm text-mist-500">
             {o.score} / {topScore}

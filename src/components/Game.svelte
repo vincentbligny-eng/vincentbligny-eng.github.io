@@ -16,6 +16,7 @@
   } from '../lib/session';
   import { SupabaseTransport, readSupabaseConfig, roomFromHash } from '../lib/supabase';
   import Chat from './Chat.svelte';
+  import History from './History.svelte';
   import type { ChatMessage } from '../lib/session';
   import Handover from './Handover.svelte';
   import Board from './Board.svelte';
@@ -63,6 +64,10 @@
   // ─── Hot-seat: which of my local seats currently controls the device ──
   let activeLocalPlayerId: string | null = null;
   let pendingHandover: { playerId: string } | null = null;
+
+  // ─── Hint-usage flags (per active seat, per turn) ─────────────────────
+  let usedHints = false;       // player ran "Analyser" / consulted the suggestions
+  let appliedHint = false;     // player applied a suggestion directly to pending
 
   // ─── Reactive derivations ──────────────────────────────────────────────
   $: pendingIds = new Set(pending.map(p => p.tileId));
@@ -133,6 +138,8 @@
   function handlePhaseChange(_from: SharedSession['phase'] | undefined, to: SharedSession['phase'], next: SharedSession) {
     if (to === 'play') {
       resetLocal();
+      usedHints = false;
+      appliedHint = false;
       cursor = { row: 7, col: 7, dir: 'H' };
       // Hand control to the first local player; if there are 2+ seats, show the handover banner.
       const localSeats = next.players.filter(p => p.clientId === clientId);
@@ -400,6 +407,7 @@
   async function analyze() {
     if (!dict || !shared) return;
     hintsLoading = true;
+    usedHints = true;
     await new Promise(r => setTimeout(r, 20));
     hintReport = computeHints(shared.board, shared.rack.map(t => t.letter), dict);
     hintsLoading = false;
@@ -420,6 +428,8 @@
     pending = plan;
     ghost = [];
     cursor = { row: m.row, col: m.col, dir: m.dir };
+    usedHints = true;
+    appliedHint = true;
   }
 
   function detectEasterEgg(words: string[]) {
@@ -439,7 +449,12 @@
     }
     lastError = null;
 
-    const record = { placements: placements.length > 0 ? placements : null, submittedAt: Date.now() };
+    const record = {
+      placements: placements.length > 0 ? placements : null,
+      submittedAt: Date.now(),
+      usedHints,
+      appliedHint,
+    };
     const submittingPlayerId = me.playerId;
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(25);
 
@@ -457,6 +472,8 @@
         playerName: p.name,
         placements: submissions[p.playerId].placements,
         submittedAt: submissions[p.playerId].submittedAt,
+        usedHints: submissions[p.playerId].usedHints,
+        appliedHint: submissions[p.playerId].appliedHint,
       }));
       const engineState = {
         board: s.board,
@@ -509,6 +526,10 @@
     });
     // Clear my local pending after recording.
     resetLocal();
+    // Hint flags belong to the seat that just submitted; the next seat starts fresh.
+    usedHints = false;
+    appliedHint = false;
+    hintReport = null;
 
     // Hot-seat: if another local seat hasn't submitted yet, hand the device over to them.
     if (shared && shared.phase === 'play') {
@@ -567,6 +588,9 @@
     window.location.hash = '';
     window.location.reload();
   }
+
+  // ─── Full history modal ───────────────────────────────────────────────
+  let historyOpen = false;
 
   // ─── Chat ─────────────────────────────────────────────────────────────
   $: chatMessages = shared?.chat ?? [];
@@ -721,6 +745,7 @@
           currentPlayerId={me?.playerId ?? ''}
           turn={shared.turn}
           topScoreCum={shared.topScoreCum}
+          onShowFullHistory={() => historyOpen = true}
         />
       </aside>
 
@@ -879,6 +904,13 @@
     me={chatMe}
     onSend={sendChat}
     storageKey={chatStorageKey}
+  />
+{/if}
+{#if historyOpen && shared}
+  <History
+    history={shared.duelHistory}
+    playerColors={playerColors}
+    onClose={() => historyOpen = false}
   />
 {/if}<Coach />
 {#if pendingHandover && shared?.phase === 'play' && handoverPlayer}

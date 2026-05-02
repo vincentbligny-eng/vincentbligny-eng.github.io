@@ -121,6 +121,8 @@ export interface DuelSubmission {
   playerName: string;
   placements: Placement[] | null; // null = pass
   submittedAt?: number;           // tiebreak when two humans hit the same top score
+  usedHints?: boolean;            // player consulted the Aide progressive this turn
+  appliedHint?: boolean;          // player applied a hint directly to their pending move
 }
 
 export interface DuelOutcome {
@@ -130,6 +132,8 @@ export interface DuelOutcome {
   score: number;   // raw score of the player's move (0 on pass/invalid)
   diff: number;    // score − topScore (always ≤ 0); this is the tournament écart
   error?: string;
+  usedHints?: boolean;    // peeked at the suggestions
+  appliedHint?: boolean;  // applied one directly
 }
 
 export interface DuelResolution {
@@ -158,14 +162,15 @@ export function resolveDuel(state: GameState, subs: DuelSubmission[], dict: Dict
   // Validate each submission once, attach the validated move to the outcome.
   type WipOutcome = DuelOutcome & { sub: DuelSubmission };
   const wip: WipOutcome[] = subs.map(s => {
+    const meta = { usedHints: !!s.usedHints, appliedHint: !!s.appliedHint };
     if (!s.placements || s.placements.length === 0) {
-      return { sub: s, playerId: s.playerId, playerName: s.playerName, move: null, score: 0, diff: 0 };
+      return { sub: s, playerId: s.playerId, playerName: s.playerName, move: null, score: 0, diff: 0, ...meta };
     }
     const v = validatePlayerMove(state.board, s.placements, dict);
     if ('error' in v) {
-      return { sub: s, playerId: s.playerId, playerName: s.playerName, move: null, score: 0, diff: 0, error: v.error };
+      return { sub: s, playerId: s.playerId, playerName: s.playerName, move: null, score: 0, diff: 0, error: v.error, ...meta };
     }
-    return { sub: s, playerId: s.playerId, playerName: s.playerName, move: v.move, score: v.move.score, diff: 0 };
+    return { sub: s, playerId: s.playerId, playerName: s.playerName, move: v.move, score: v.move.score, diff: 0, ...meta };
   });
 
   // Pick the best human (max score; tiebreak on earliest submittedAt). Only

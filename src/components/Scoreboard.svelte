@@ -16,6 +16,7 @@
   export let currentPlayerId: string;
   export let turn: number;
   export let topScoreCum: number;  // Ordi's cumulative top score
+  export let onShowFullHistory: () => void = () => {};
 </script>
 
 <section class="panel p-5 space-y-4">
@@ -62,8 +63,15 @@
   </div>
 
   <div class="border-t border-white/5 pt-3">
-    <h4 class="text-xs font-mono uppercase tracking-wider text-mist-500 mb-2">Historique</h4>
-    <div class="space-y-1 max-h-56 overflow-auto pr-1 text-xs">
+    <div class="flex items-center justify-between mb-2">
+      <h4 class="text-xs font-mono uppercase tracking-wider text-mist-500">Historique</h4>
+      {#if history.length > 0}
+        <button class="text-[10px] font-mono text-neon hover:underline" on:click={onShowFullHistory}>
+          Tout voir →
+        </button>
+      {/if}
+    </div>
+    <div class="space-y-1 max-h-40 overflow-auto pr-1 text-xs">
       {#if history.length === 0}
         <p class="text-mist-500">Aucune manche jouée.</p>
       {:else}
