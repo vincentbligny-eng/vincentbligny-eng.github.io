@@ -13,18 +13,25 @@
 
   function premiumClass(r: number, c: number): string {
     const p = PREMIUM_GRID[r][c];
-    if (r === CENTER && c === CENTER) return 'bg-prem-center/80 text-night-900';
+    if (r === CENTER && c === CENTER) return 'bg-prem-center/85 text-night-900';
     switch (p) {
-      case 'DL': return 'bg-ice/25 text-ice-glow';
-      case 'TL': return 'bg-ice/55 text-ice-glow';
-      case 'DW': return 'bg-rose/25 text-rose-glow';
-      case 'TW': return 'bg-rose/60 text-rose-glow font-bold';
+      case 'DL': return 'bg-prem-dl/35 text-sky-100 ring-1 ring-inset ring-prem-dl/40';
+      case 'TL': return 'bg-prem-tl/70 text-blue-50  ring-1 ring-inset ring-blue-300/35';
+      case 'DW': return 'bg-prem-dw/35 text-pink-50  ring-1 ring-inset ring-prem-dw/45';
+      case 'TW': return 'bg-prem-tw/75 text-rose-50  ring-1 ring-inset ring-red-300/40 font-bold';
       default:   return 'bg-night-600/40';
     }
   }
   function premiumLabel(r: number, c: number): string {
     if (r === CENTER && c === CENTER) return '★';
-    return PREMIUM_GRID[r][c] ?? '';
+    const p = PREMIUM_GRID[r][c];
+    switch (p) {
+      case 'DL': return 'L×2';
+      case 'TL': return 'L×3';
+      case 'DW': return 'M×2';
+      case 'TW': return 'M×3';
+      default:   return '';
+    }
   }
   function tileFaceClass(kind: string): string {
     if (kind === 'pending') return 'tile-face2d-pending text-night-900';
@@ -124,7 +131,7 @@
                   </div>
                 {/if}
               {:else}
-                <span class="opacity-70 relative z-[1] font-mono text-[9px]">{premiumLabel(r, c)}</span>
+                <span class="opacity-90 relative z-[1] font-mono font-semibold text-[10px] tracking-tight">{premiumLabel(r, c)}</span>
               {/if}
 
               {#if isCursor && !occupant}

@@ -17,9 +17,11 @@ export default {
         rose:     { DEFAULT: '#fb7185', glow: '#fda4af' },      // warning
         tile:     { cream: '#f5e7c9', edge: '#d4b88b' },
         prem: {
-          dl: '#1e3a8a', tl: '#172554',
-          dw: '#831843', tw: '#4c0519',
-          center: '#fbbf24',
+          dl: '#38bdf8',     // sky — letter ×2
+          tl: '#2563eb',     // royal blue — letter ×3
+          dw: '#fb7185',     // warm pink — word ×2
+          tw: '#dc2626',     // crimson — word ×3
+          center: '#fbbf24', // amber — start
         },
       },
       boxShadow: {
