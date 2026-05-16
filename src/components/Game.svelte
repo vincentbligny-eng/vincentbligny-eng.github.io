@@ -12,9 +12,12 @@
   import { EASTER_EGGS } from '../lib/easter-eggs';
   import {
     LocalTransport, pickColor, generatePlayerId,
+    decayMultiplierFor,
     type SessionTransport, type SharedSession, type LobbyPlayer,
   } from '../lib/session';
-  import { SupabaseTransport, readSupabaseConfig, roomFromHash } from '../lib/supabase';
+  import { SupabaseTransport, readSupabaseConfig, roomFromHash, generateRoomId, setRoomInUrl } from '../lib/supabase';
+  import DecayTimer from './DecayTimer.svelte';
+  import RoomsList from './RoomsList.svelte';
   import Chat from './Chat.svelte';
   import History from './History.svelte';
   import type { ChatMessage } from '../lib/session';
@@ -198,6 +201,8 @@
       seed,
       startedAt: null,
       chat: [],
+      firstSubmittedAt: null,
+      turnStartedAt: null,
     };
   }
 
@@ -247,7 +252,7 @@
     if (shared.players.length < 2) return;
     await transport.update(s => {
       if (!s) return createEmptyShared();
-      return { ...s, phase: 'play', startedAt: Date.now() };
+      return { ...s, phase: 'play', startedAt: Date.now(), turnStartedAt: Date.now(), firstSubmittedAt: null };
     });
   }
 
@@ -447,11 +452,16 @@
     }
     lastError = null;
 
+    const submittedAt = Date.now();
+    const firstSubmittedAt = shared.firstSubmittedAt ?? submittedAt;
+    const elapsedMs = submittedAt - firstSubmittedAt;
+    const myDecay = decayMultiplierFor(elapsedMs);
     const record = {
       placements: placements.length > 0 ? placements : null,
-      submittedAt: Date.now(),
+      submittedAt,
       usedHints,
       appliedHint,
+      decayMultiplier: myDecay,
     };
     const submittingPlayerId = me.playerId;
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(25);
@@ -460,9 +470,10 @@
     await transport.update(s => {
       if (!s || s.phase !== 'play') return s ?? createEmptyShared();
       const submissions = { ...s.submissions, [submittingPlayerId]: record };
+      const nextFirst = s.firstSubmittedAt ?? record.submittedAt;
       const allIn = s.players.every(p => submissions[p.playerId]);
       if (!allIn) {
-        return { ...s, submissions };
+        return { ...s, submissions, firstSubmittedAt: nextFirst };
       }
       // Resolve locally, publish everything.
       const subs: DuelSubmission[] = s.players.map(p => ({
@@ -472,6 +483,7 @@
         submittedAt: submissions[p.playerId].submittedAt,
         usedHints: submissions[p.playerId].usedHints,
         appliedHint: submissions[p.playerId].appliedHint,
+        decayMultiplier: submissions[p.playerId].decayMultiplier ?? 1,
       }));
       const engineState = {
         board: s.board,
@@ -511,6 +523,8 @@
           humanOverride: result.humanOverride,
         }],
         submissions: {},
+        firstSubmittedAt: null,
+        turnStartedAt: ended ? null : Date.now(),
         lastTurnResult: {
           outcomes: result.outcomes,
           topMove: result.topMove,
@@ -553,7 +567,11 @@
     if (!shared) return;
     await transport.update(s => {
       if (!s) return createEmptyShared();
-      if (s.phase === 'reveal') return { ...s, phase: 'play', lastTurnResult: null };
+      if (s.phase === 'reveal') return {
+        ...s, phase: 'play', lastTurnResult: null,
+        firstSubmittedAt: null,
+        turnStartedAt: Date.now(),
+      };
       return s;
     });
   }
@@ -567,9 +585,8 @@
     ? `${window.location.origin}${window.location.pathname}#room=${activeRoomId}`
     : '';
 
-  async function startOnlineRoom() {
+  function startOnlineRoom() {
     if (!readSupabaseConfig()) return;
-    const { generateRoomId, setRoomInUrl } = await import('../lib/supabase');
     setRoomInUrl(generateRoomId()); // hashchange listener reloads → SupabaseTransport activates
   }
 
@@ -629,12 +646,14 @@
         </span>
       </div>
     </div>
-  {:else if supabaseConfigured}
-    <div class="max-w-lg mx-auto px-4 pt-6">
-      <button class="panel w-full px-4 py-3 text-sm hover:bg-white/[0.06] transition" on:click={startOnlineRoom}>
-        📱 Mode local · <span class="text-neon">Inviter à distance</span>
-      </button>
-    </div>
+  {/if}
+  {#if supabaseConfigured}
+    {@const cfg = readSupabaseConfig()}
+    {#if cfg}
+      <div class="max-w-lg mx-auto px-4 pt-6">
+        <RoomsList config={cfg} currentRoomId={activeRoomId} onCreate={startOnlineRoom} />
+      </div>
+    {/if}
   {/if}
   <!-- JOIN + LOBBY merge: show join when we're not in, lobby when we are. -->
   {#if !shared || !shared.players.some(p => p.clientId === clientId)}
@@ -769,6 +788,13 @@
         {/if}
 
         {#if shared.phase === 'play' && !iHaveSubmitted}
+          {#if shared.firstSubmittedAt != null}
+            <DecayTimer
+              firstSubmittedAt={shared.firstSubmittedAt}
+              activeColor={me?.color ?? '#a3e635'}
+              mode="me"
+            />
+          {/if}
           <div class="hidden lg:block space-y-2">
             <Rack
               rack={shared.rack}
@@ -798,6 +824,13 @@
             </div>
           </div>
         {:else if shared.phase === 'play' && iHaveSubmitted}
+          {#if shared.firstSubmittedAt != null}
+            <DecayTimer
+              firstSubmittedAt={shared.firstSubmittedAt}
+              activeColor={me?.color ?? '#a3e635'}
+              mode="spectator"
+            />
+          {/if}
           <WaitingOthers
             players={shared.players}
             submissions={shared.submissions}

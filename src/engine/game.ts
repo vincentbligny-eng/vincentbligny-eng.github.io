@@ -123,14 +123,17 @@ export interface DuelSubmission {
   submittedAt?: number;           // tiebreak when two humans hit the same top score
   usedHints?: boolean;            // player consulted the Aide progressive this turn
   appliedHint?: boolean;          // player applied a hint directly to their pending move
+  decayMultiplier?: number;       // 0..1 — late-penalty factor applied to this submission's score
 }
 
 export interface DuelOutcome {
   playerId: string;
   playerName: string;
   move: Move | null;
-  score: number;   // raw score of the player's move (0 on pass/invalid)
-  diff: number;    // score − topScore (always ≤ 0); this is the tournament écart
+  score: number;          // final (decayed) score credited to the player
+  rawScore: number;       // score before late-penalty decay
+  decayMultiplier: number; // 0..1 — late-penalty factor applied (1 if no decay)
+  diff: number;           // score − topScore (always ≤ 0); this is the tournament écart
   error?: string;
   usedHints?: boolean;    // peeked at the suggestions
   appliedHint?: boolean;  // applied one directly
@@ -163,18 +166,26 @@ export function resolveDuel(state: GameState, subs: DuelSubmission[], dict: Dict
   type WipOutcome = DuelOutcome & { sub: DuelSubmission };
   const wip: WipOutcome[] = subs.map(s => {
     const meta = { usedHints: !!s.usedHints, appliedHint: !!s.appliedHint };
+    const mult = s.decayMultiplier == null ? 1 : Math.max(0, Math.min(1, s.decayMultiplier));
     if (!s.placements || s.placements.length === 0) {
-      return { sub: s, playerId: s.playerId, playerName: s.playerName, move: null, score: 0, diff: 0, ...meta };
+      return { sub: s, playerId: s.playerId, playerName: s.playerName, move: null,
+               score: 0, rawScore: 0, decayMultiplier: mult, diff: 0, ...meta };
     }
     const v = validatePlayerMove(state.board, s.placements, dict);
     if ('error' in v) {
-      return { sub: s, playerId: s.playerId, playerName: s.playerName, move: null, score: 0, diff: 0, error: v.error, ...meta };
+      return { sub: s, playerId: s.playerId, playerName: s.playerName, move: null,
+               score: 0, rawScore: 0, decayMultiplier: mult, diff: 0, error: v.error, ...meta };
     }
-    return { sub: s, playerId: s.playerId, playerName: s.playerName, move: v.move, score: v.move.score, diff: 0, ...meta };
+    const raw = v.move.score;
+    const decayed = Math.round(raw * mult);
+    return { sub: s, playerId: s.playerId, playerName: s.playerName, move: v.move,
+             score: decayed, rawScore: raw, decayMultiplier: mult, diff: 0, ...meta };
   });
 
-  // Pick the best human (max score; tiebreak on earliest submittedAt). Only
-  // promote to override if it strictly beats Ordi.
+  // Pick the best human (max score; tiebreak on earliest submittedAt). The
+  // sorry-sorry comparison uses the decayed score — a slow player should not
+  // get to replace Ordi's move with a stale top, but their raw move still
+  // appears in history.
   const humanCandidate = wip
     .filter(o => o.move != null && o.score > 0)
     .sort((a, b) => b.score - a.score

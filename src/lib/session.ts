@@ -35,6 +35,7 @@ export interface SubmissionRecord {
   submittedAt: number;
   usedHints?: boolean;
   appliedHint?: boolean;
+  decayMultiplier?: number;        // 0..1 — late penalty applied to the recorded score
 }
 
 export interface ChatMessage {
@@ -72,6 +73,26 @@ export interface SharedSession {
   seed: number;
   startedAt: number | null;
   chat: ChatMessage[];
+  firstSubmittedAt: number | null;   // wall-clock of the first submission of the current turn
+  turnStartedAt: number | null;      // wall-clock of when 'play' phase began for this turn
+  roomTitle?: string;                // optional, surfaced in the public rooms directory
+}
+
+// ─── Score decay ──────────────────────────────────────────────────────────
+// "Smart timer": once one player has submitted, every other player's score
+// stays at 100% for a 2-minute grace period, then decays *ominously* down to
+// zero by the 5-minute mark. The decay is quadratic (slow start, accelerating
+// doom) so the bar drifts gently at first and then plunges.
+export const DECAY_GRACE_MS = 120_000;  // full score until here
+export const DECAY_DOOM_MS  = 300_000;  // zero from here on
+export const DECAY_WINDOW_MS = DECAY_DOOM_MS - DECAY_GRACE_MS;
+
+export function decayMultiplierFor(elapsedMs: number): number {
+  if (elapsedMs <= DECAY_GRACE_MS) return 1;
+  if (elapsedMs >= DECAY_DOOM_MS)  return 0;
+  const t = (elapsedMs - DECAY_GRACE_MS) / DECAY_WINDOW_MS; // 0..1
+  // Quadratic ease-in: 1 - t² → soft drift, accelerating fall.
+  return Math.max(0, 1 - t * t);
 }
 
 export interface SessionTransport {

@@ -87,12 +87,19 @@
             {o.score} / {topScore}
           </span>
         </div>
-        <div class="mt-2 flex items-baseline gap-3">
+        <div class="mt-2 flex items-baseline gap-3 flex-wrap">
           {#if o.move}
             <p class="font-display text-2xl" style="color: {color};">{o.move.word}</p>
             <p class="font-mono text-xl" style="color: {o.diff === 0 ? '#a3e635' : '#9aa3b7'};">
               {o.diff === 0 ? '±0' : o.diff}
             </p>
+            {#if (o.decayMultiplier ?? 1) < 1}
+              <span class="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded
+                           bg-rose-glow/20 text-rose-glow border border-rose-glow/40"
+                    title="Score réduit par le compte à rebours">
+                ⏱ {o.rawScore} × {Math.round((o.decayMultiplier ?? 1) * 100)}%
+              </span>
+            {/if}
           {:else if o.error}
             <p class="text-xs text-rose-glow italic">{o.error} · écart {o.diff}</p>
           {:else}

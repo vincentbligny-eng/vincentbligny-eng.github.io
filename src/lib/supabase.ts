@@ -124,6 +124,43 @@ export function setRoomInUrl(roomId: string) {
 
 export interface SupabaseConfig { url: string; anonKey: string; }
 
+export interface RoomSummary {
+  roomId: string;
+  phase: SharedSession['phase'];
+  players: { name: string; color: string }[];
+  turn: number;
+  topScoreCum: number;
+  updatedAt: string;
+  hasFirstSubmission: boolean;
+}
+
+// Public rooms directory. RLS on `sessions` already allows anon select, so
+// every client can browse every room (room IDs are no longer secrets).
+export async function listRooms(cfg: SupabaseConfig, limit = 30): Promise<RoomSummary[]> {
+  const client = createClient(cfg.url, cfg.anonKey);
+  const { data, error } = await client
+    .from('sessions')
+    .select('room_id, data, updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return data
+    .map((row): RoomSummary | null => {
+      const d = row.data as SharedSession | null;
+      if (!d) return null;
+      return {
+        roomId: row.room_id as string,
+        phase: d.phase,
+        players: (d.players ?? []).map(p => ({ name: p.name, color: p.color })),
+        turn: d.turn ?? 1,
+        topScoreCum: d.topScoreCum ?? 0,
+        updatedAt: row.updated_at as string,
+        hasFirstSubmission: d.firstSubmittedAt != null,
+      };
+    })
+    .filter((x): x is RoomSummary => x != null);
+}
+
 export function readSupabaseConfig(): SupabaseConfig | null {
   // Astro exposes PUBLIC_* env vars to the client at build time.
   const url = import.meta.env.PUBLIC_SUPABASE_URL as string | undefined;
